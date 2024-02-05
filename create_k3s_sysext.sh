@@ -46,8 +46,6 @@ Description=K3s Lightweight Kubernetes
 Documentation=https://k3s.io
 Wants=network-online.target
 After=network-online.target
-Wants=cni-install.service
-After=cni-install.service
 
 [Install]
 WantedBy=multi-user.target
@@ -70,8 +68,6 @@ Restart=always
 RestartSec=5s
 ExecStartPre=-/sbin/modprobe br_netfilter
 ExecStartPre=-/sbin/modprobe overlay
-ExecStartPre=/usr/bin/mkdir -p /opt/cni/bin
-ExecStartPre=/usr/bin/cp -r /usr/local/bin/cni/. /opt/cni/bin/
 ExecStartPre=/usr/bin/mkdir -p /etc/rancher/k3s/config.yaml.d
 ExecStartPre=/usr/bin/cp -r /usr/local/share/k3s/%i.yaml /etc/rancher/k3s/config.yaml.d/00-defaults.yaml
 ExecStart=/usr/bin/k3s %i
@@ -134,6 +130,7 @@ mkdir -p "${SYSEXTNAME}/usr/local/bin/cni"
 tar --force-local -xf "cni.tgz" -C "${SYSEXTNAME}/usr/local/bin/cni"
 rm -f cni.tgz
 
+# minimal CNI config to avoid errors.
 mkdir -p "${SYSEXTNAME}/usr/share/cni"
 cat > "${SYSEXTNAME}/usr/share/cni/99-loopback.conflist" <<-'EOF'
 {
@@ -164,6 +161,31 @@ RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
+EOF
+
+# drop in to ensure cni-install.service is started before k3s.
+# but to allow it to be disabled easily.
+mkdir -p "${SYSEXTNAME}/usr/lib/systemd/system/k3s@server.service.d"
+cat > "${SYSEXTNAME}/usr/lib/systemd/system/k3s@server.service.d/00-cni-install.conf" <<-'EOF'
+[Unit]
+Wants=cni-install.service
+After=cni-install.service
+EOF
+
+mkdir -p "${SYSEXTNAME}/usr/lib/systemd/system/k3s@agent.service.d"
+cat > "${SYSEXTNAME}/usr/lib/systemd/system/k3s@agent.service.d/00-cni-install.conf" <<-'EOF'
+[Unit]
+Wants=cni-install.service
+After=cni-install.service
+EOF
+
+
+# dropin to install cni when containerd starts.
+mkdir -p "${SYSEXTNAME}/usr/lib/systemd/system/containerd.service.d"
+cat > "${SYSEXTNAME}/usr/lib/systemd/system/containerd.service.d/10-cni-install.conf" <<-'EOF'
+[Unit]
+Wants=cni-install.service
+After=cni-install.service
 EOF
 
 "${SCRIPTFOLDER}"/bake.sh "${SYSEXTNAME}"
