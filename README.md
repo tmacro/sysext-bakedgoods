@@ -1,4 +1,6 @@
-# sysext-bakery: Recipes for baking systemd-sysext images
+# sysext-bakedgood: Recipes for baking systemd-sysext images
+
+Based on [flatcar/sysext-bakery](https://github.com/flatcar/sysext-bakery/)
 
 [Systemd-sysext images](https://www.freedesktop.org/software/systemd/man/systemd-sysext.html) are overlay images for `/usr`, allowing to extend the base OS with custom (static) binaries.
 Flatcar Container Linux as an OS without a package manager is a good fit for extension through systemd-sysext.
@@ -88,49 +90,37 @@ variant: flatcar
 version: 1.0.0
 storage:
   files:
-    - path: /opt/extensions/wasmtime/wasmtime-13.0.0-x86-64.raw
+    - path: /opt/extensions/k3s/k3s-1.29.0+k3s1-1-x86-64.raw
       contents:
-        source: https://github.com/flatcar/sysext-bakery/releases/download/latest/wasmtime-13.0.0-x86-64.raw
-    - path: /opt/extensions/docker/docker-24.0.5-x86-64.raw
+        source: https://github.com/tmacro/sysext-bakedgoods/releases/download/latest/k3s-1.29.0+k3s1-1-x86-64.raw
+    - path: /opt/extensions/cilium/cilium-0.15.0-1-x86-64.raw
       contents:
-        source: https://github.com/flatcar/sysext-bakery/releases/download/latest/docker-24.0.5-x86-64.raw
-    - path: /etc/systemd/system-generators/torcx-generator
+        source: https://github.com/tmacro/sysext-bakedgoods/releases/download/latest/cilium-0.15.0-1-x86-64.raw
     - path: /etc/sysupdate.d/noop.conf
       contents:
         source: https://github.com/flatcar/sysext-bakery/releases/download/latest/noop.conf
-    - path: /etc/sysupdate.wasmtime.d/wasmtime.conf
-      contents:
-        source: https://github.com/flatcar/sysext-bakery/releases/download/latest/wasmtime.conf
-    - path: /etc/sysupdate.docker.d/docker.conf
-      contents:
-        source: https://github.com/flatcar/sysext-bakery/releases/download/latest/docker.conf
+
   links:
-    - target: /opt/extensions/wasmtime/wasmtime-13.0.0-x86-64.raw
-      path: /etc/extensions/wasmtime.raw
+    - target: /opt/extensions/cilium/cilium-0.15.0-1-x86-64.raw
+      path: /etc/extensions/cilium.raw
       hard: false
-    - target: /opt/extensions/docker/docker-24.0.5-x86-64.raw
-      path: /etc/extensions/docker.raw
+    - target: /opt/extensions/k3s/k3s-1.29.0+k3s1-1-x86-64.raw
+      path: /etc/extensions/k3s.raw
       hard: false
-    - path: /etc/extensions/docker-flatcar.raw
-      target: /dev/null
-      overwrite: true
-    - path: /etc/extensions/containerd-flatcar.raw
-      target: /dev/null
-      overwrite: true
 systemd:
   units:
     - name: systemd-sysupdate.timer
       enabled: true
     - name: systemd-sysupdate.service
       dropins:
-        - name: wasmtime.conf
+        - name: cilium.conf
           contents: |
             [Service]
-            ExecStartPre=/usr/lib/systemd/systemd-sysupdate -C wasmtime update
-        - name: docker.conf
+            ExecStartPre=/usr/lib/systemd/systemd-sysupdate -C cilium update
+        - name: k3s.conf
           contents: |
             [Service]
-            ExecStartPre=/usr/lib/systemd/systemd-sysupdate -C docker update
+            ExecStartPre=/usr/lib/systemd/systemd-sysupdate -C k3s update
         - name: sysext.conf
           contents: |
             [Service]
@@ -143,37 +133,3 @@ Since the configuration sets up a custom Docker version, it also disables Torcx 
 In the [Flatcar docs](https://www.flatcar.org/docs/latest/provisioning/sysext/) you can find an Ignition configuration that explicitly sets the update configurations instead of downloading them.
 
 The updates works by [`systemd-sysupdate`](https://www.freedesktop.org/software/systemd/man/sysupdate.d.html) fetching the `SHA256SUMS` file of the generated artifacts, which holds the list of built images with their respective SHA256 digest.
-
-### Creating a custom Docker sysext image
-
-The Docker releases publish static binaries including containerd and the only missing piece are the systemd units.
-To ease the process, the `create_docker_sysext.sh` helper script takes care of downloading the release binaries and adding the systemd unit files, and creates a combined Docker+containerd sysext image:
-
-```
-./create_docker_sysext.sh 20.10.13 mydocker
-[… writes mydocker.raw into current directory …]
-```
-
-Pass the `OS` or `ARCH` environment variables to build for another target than Flatcar amd64, e.g., for any distro with arm64:
-
-```
-OS=_any ARCH=arm64 ./create_docker_sysext.sh 20.10.13 mydocker
-[… writes mydocker.raw into current directory …]
-```
-
-See the above intro section on how to use the resulting sysext image.
-
-You can also limit the sysext image to only Docker (without containerd and runc) or only containerd (no Docker but runc) by passing the environment variables `ONLY_DOCKER=1` or `ONLY_CONTAINERD=1`.
-If you build both sysext images that way, you can load both combined and, e.g., only load the Docker sysext image for debugging while using the containerd sysext image by default for Kubernetes.
-
-### Converting a Torcx image
-
-Torcx was a solution for switching between different Docker versions on Flatcar.
-In case you have an existing Torcx image you can convert it with the `convert_torcx_image.sh` helper script (Currently only Torcx tar balls are supported and the conversion is done on best effort):
-
-```
-./convert_torcx_image.sh TORCXTAR SYSEXTNAME
-[… writes SYSEXTNAME.raw into the current directory …]
-```
-
-Please make also sure that your don't have a `containerd.service` drop in file under `/etc` that uses Torcx paths.
