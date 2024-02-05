@@ -18,11 +18,11 @@ jobs:
         run: >
           sudo apt update -qq
           && sudo apt install -yqq
-            curl
-            jq
-            squashfs-tools
-            xz-utils
-            gawk
+          curl
+          jq
+          squashfs-tools
+          xz-utils
+          gawk
 
       # build the images and generate a manifest
       - name: build
