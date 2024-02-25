@@ -33,18 +33,18 @@ done
 for stream in "${streams[@]}"; do
     component="${stream%:*}"
     pattern="${stream#*:}"
-    cat <<- EOF > "${component}.conf"
-        [Transfer]
-        Verify=false
-        [Source]
-        Type=url-file
-        Path=${bakery}
-        MatchPattern=${component}${pattern}-%a.raw
-        [Target]
-        InstancesMax=3
-        Type=regular-file
-        Path=/opt/extensions/${component%-*}
-        CurrentSymlink=/etc/extensions/${component%-*}.raw
+    cat <<-EOF > "${component}.conf"
+[Transfer]
+Verify=false
+[Source]
+Type=url-file
+Path=${bakery}
+MatchPattern=${component}${pattern}-%a.raw
+[Target]
+InstancesMax=3
+Type=regular-file
+Path=/opt/extensions/${component%-*}
+CurrentSymlink=/etc/extensions/${component%-*}.raw
 EOF
 done
 
