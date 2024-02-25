@@ -9,6 +9,7 @@ fi
 images=(
     "cilium-0.15.0-1"
     "k3s-1.29.0+k3s1-1"
+    "k3s-1.29.1+k3s2-1"
 )
 
 archs=(
